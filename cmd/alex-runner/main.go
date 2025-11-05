@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	runner "github.com/alexanderchan/alex-runner/internal"
 )
@@ -37,9 +38,9 @@ func main() {
 	flag.BoolVar(&noCache, "no-cache", false, "Re-detect package manager instead of using cached value")
 	flag.Parse()
 
-	// If no flags provided but positional args exist, use first arg as search term
+	// If no flags provided but positional args exist, join all args as search term
 	if searchTerm == "" && !useLast && !listScripts && !resetDir && !resetAll && len(flag.Args()) > 0 {
-		searchTerm = flag.Args()[0]
+		searchTerm = strings.Join(flag.Args(), " ")
 	}
 
 	if showHelp {

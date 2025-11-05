@@ -274,7 +274,7 @@ func (m *filterableSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selected = 0
 			m.viewport.GotoTop()
 
-		case "up", "k":
+		case "up":
 			if m.selected > 0 {
 				m.selected--
 			} else {
@@ -283,7 +283,7 @@ func (m *filterableSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.updateViewport()
 
-		case "down", "j":
+		case "down":
 			if m.selected < len(m.filteredScripts)-1 {
 				m.selected++
 			} else {

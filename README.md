@@ -372,8 +372,8 @@ commandMaxWidthBuffer = 5     // Space for "..." truncation
 ```
 
 **Keyboard controls:**
-- **↑** / **k** - Move selection up (wraps around)
-- **↓** / **j** - Move selection down (wraps around)
+- **↑** - Move selection up (wraps around)
+- **↓** - Move selection down (wraps around)
 - **Enter** - Execute selected script
 - **q** / **Ctrl+C** - Quit without running
 - **Type** - Live filter scripts
