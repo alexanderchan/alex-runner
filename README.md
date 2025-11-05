@@ -22,6 +22,8 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 
 ## Demo Flow
 
+![Alex Runner Demo](public/images/demo.webp)
+
 When you run `alex-runner`:
 
 1. **Interactive selector**: Shows all scripts with most frecent at the top
