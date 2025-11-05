@@ -43,8 +43,13 @@ When you run `alex-runner`:
 ### Via Go Install (Recommended)
 
 ```bash
+go install github.com/alexanderchan/alex-runner@latest
+```
+
+for development
+
+```bash
 go install ./cmd/alex-runner
-# go install github.com/alexanderchan/alex-runner@latest
 ```
 
 ### Manual Build
