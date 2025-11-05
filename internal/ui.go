@@ -267,8 +267,14 @@ func (m *filterableSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		case "esc":
+		case "esc", "ctrl+u", "alt+backspace", "ctrl+backspace":
 			// Clear filter and show all scripts
+			// Multiple shortcuts for different terminal/platform preferences:
+			// - esc: universal
+			// - ctrl+u: standard terminal "clear line"
+			// - alt+backspace: may work as cmd+backspace on Mac
+			// - ctrl+backspace: works on some terminals
+			// - ctrl+w: standard "delete word backward"
 			m.filter.SetValue("")
 			m.filteredScripts = m.allScripts
 			m.selected = 0
@@ -448,7 +454,7 @@ func (m *filterableSelector) View() string {
 	}
 
 	// Help text
-	help := metadataStyle.Render("\n↑/↓: navigate • enter: select • esc: clear filter • q: quit")
+	help := metadataStyle.Render("\n↑/↓: navigate • enter: select • esc: clear • q: quit")
 	s.WriteString(help)
 
 	return s.String()

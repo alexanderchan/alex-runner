@@ -9,34 +9,52 @@ func createTestScoredScripts() []ScoredScript {
 	now := time.Now()
 	return []ScoredScript{
 		{
-			Script:       NPMScript{Name: "dev", Command: "next dev"},
+			Script:        NPMScript{Name: "dev", Command: "next dev"},
 			FrecencyScore: 10.0,
-			LastUsed:     &now,
-			UseCount:     20,
+			LastUsed:      &now,
+			UseCount:      20,
 		},
 		{
-			Script:       NPMScript{Name: "build", Command: "next build"},
+			Script:        NPMScript{Name: "build", Command: "next build"},
 			FrecencyScore: 5.0,
-			LastUsed:     &now,
-			UseCount:     10,
+			LastUsed:      &now,
+			UseCount:      10,
 		},
 		{
-			Script:       NPMScript{Name: "build:cli", Command: "esbuild ./scripts/cli.ts"},
+			Script:        NPMScript{Name: "build:cli", Command: "esbuild ./scripts/cli.ts"},
 			FrecencyScore: 3.0,
-			LastUsed:     &now,
-			UseCount:     5,
+			LastUsed:      &now,
+			UseCount:      5,
 		},
 		{
-			Script:       NPMScript{Name: "test", Command: "jest"},
+			Script:        NPMScript{Name: "test", Command: "jest"},
 			FrecencyScore: 2.0,
-			LastUsed:     &now,
-			UseCount:     3,
+			LastUsed:      &now,
+			UseCount:      3,
 		},
 		{
-			Script:       NPMScript{Name: "typecheck", Command: "tsc --noEmit"},
+			Script:        NPMScript{Name: "typecheck", Command: "tsc --noEmit"},
 			FrecencyScore: 1.0,
-			LastUsed:     &now,
-			UseCount:     2,
+			LastUsed:      &now,
+			UseCount:      2,
+		},
+		{
+			Script:        NPMScript{Name: "start-docker:traefik:build", Command: "docker compose down && docker compose -f ./compose.yml build"},
+			FrecencyScore: 4.0,
+			LastUsed:      &now,
+			UseCount:      8,
+		},
+		{
+			Script:        NPMScript{Name: "demo-record", Command: "vhs record > cassette.tape"},
+			FrecencyScore: 2.5,
+			LastUsed:      &now,
+			UseCount:      4,
+		},
+		{
+			Script:        NPMScript{Name: "demo-generate", Command: "vhs cassette.tape"},
+			FrecencyScore: 2.0,
+			LastUsed:      &now,
+			UseCount:      3,
 		},
 	}
 }
@@ -251,4 +269,92 @@ func TestSearchScriptsWhitespace(t *testing.T) {
 	if results[0].Script.Name != "dev" {
 		t.Errorf("expected 'dev' as first result, got '%s'", results[0].Script.Name)
 	}
+}
+
+func TestSearchScriptsMultiWordQueries(t *testing.T) {
+	scripts := createTestScoredScripts()
+
+	tests := []struct {
+		name          string
+		query         string
+		expectMatch   string
+		expectResults bool
+	}{
+		{
+			name:          "Multi-word query 'docker build' should match 'start-docker:traefik:build'",
+			query:         "docker build",
+			expectMatch:   "start-docker:traefik:build",
+			expectResults: true,
+		},
+		{
+			name:          "Multi-word query 'build docker' (reversed) should match 'start-docker:traefik:build'",
+			query:         "build docker",
+			expectMatch:   "start-docker:traefik:build",
+			expectResults: true,
+		},
+		{
+			name:          "Multi-word query 'traefik build' should match 'start-docker:traefik:build'",
+			query:         "traefik build",
+			expectMatch:   "start-docker:traefik:build",
+			expectResults: true,
+		},
+		{
+			name:          "Single word 'dmo' should fuzzy match 'demo-record'",
+			query:         "dmo",
+			expectMatch:   "demo-record",
+			expectResults: true,
+		},
+		{
+			name:          "Single word 'demo' should match 'demo-record'",
+			query:         "demo",
+			expectMatch:   "demo-record",
+			expectResults: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := SearchScripts(scripts, tt.query)
+
+			if tt.expectResults {
+				if len(results) == 0 {
+					t.Errorf("Expected results for query %q but got none", tt.query)
+					return
+				}
+
+				// Check if the expected match appears in results (preferably first)
+				found := false
+				position := -1
+				for i, result := range results {
+					if result.Script.Name == tt.expectMatch {
+						found = true
+						position = i
+						break
+					}
+				}
+
+				if !found {
+					t.Errorf("Expected %q in results for query %q but not found. Got: %v",
+						tt.expectMatch, tt.query, getScriptNames(results))
+					return
+				}
+
+				t.Logf("Query %q matched %q at position %d (total: %d results)",
+					tt.query, tt.expectMatch, position, len(results))
+			} else {
+				if len(results) > 0 {
+					t.Errorf("Expected no results for query %q but got %d", tt.query, len(results))
+				}
+			}
+		})
+	}
+}
+
+// Helper function to extract script names from results for debugging
+func getScriptNames(results []ScoredScript) []string {
+	names := make([]string, len(results))
+	for i, result := range results {
+		names[i] = result.Script.Name
+	}
+	return names
 }
