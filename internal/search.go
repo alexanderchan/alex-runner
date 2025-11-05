@@ -8,6 +8,21 @@ import (
 	"github.com/schollz/closestmatch"
 )
 
+// Search Configuration Constants
+const (
+	// Minimum rank threshold for multi-word search results
+	// This filters out weak matches when searching with multiple terms
+	// For example, "hello docker" should not match scripts with only "hello"
+	// Increase this value to be more strict, decrease to be more lenient
+	multiWordMinRank = 980 // Scripts must rank at least 980 to be included (top 2-3 from combined matcher)
+
+	// Maximum number of results to request from closestmatch
+	// This prevents weak matches from getting high ranks in small script lists
+	// For example, if you have 10 scripts and search for "hello docker",
+	// we don't want all 10 scripts to get ranks 1000-910
+	maxClosestMatchResults = 3 // Only consider top 3 matches from each matcher
+)
+
 type searchResult struct {
 	scored ScoredScript
 	rank   int
@@ -103,10 +118,11 @@ func searchWithClosestMatch(scoredScripts []ScoredScript, query string) []Scored
 	cmCommands := closestmatch.New(scriptCommands, []int{2, 3, 4})
 	cmCombined := closestmatch.New(scriptCombined, []int{2, 3, 4})
 
-	// Get matches from each matcher
-	nameMatches := cmNames.ClosestN(query, len(scoredScripts))
-	commandMatches := cmCommands.ClosestN(query, len(scoredScripts))
-	combinedMatches := cmCombined.ClosestN(query, len(scoredScripts))
+	// Get matches from each matcher - limit to top N to avoid weak matches getting high ranks
+	maxResults := min(maxClosestMatchResults, len(scoredScripts))
+	nameMatches := cmNames.ClosestN(query, maxResults)
+	commandMatches := cmCommands.ClosestN(query, maxResults)
+	combinedMatches := cmCombined.ClosestN(query, maxResults)
 
 	// Build a rank map: script -> rank
 	rankMap := make(map[string]int)
@@ -146,15 +162,36 @@ func searchWithClosestMatch(scoredScripts []ScoredScript, query string) []Scored
 		}
 	}
 
-	// Build results with ranks
+	// Build results with ranks, filtering by minimum threshold
+	// Also check that results contain tokens from multiple query words
+	queryWords := strings.Fields(strings.ToLower(query))
 	var results []searchResult
 	for _, scored := range scoredScripts {
 		name := strings.ToLower(scored.Script.Name)
-		if rank, hasRank := rankMap[name]; hasRank && rank > 0 {
-			results = append(results, searchResult{
-				scored: scored,
-				rank:   rank,
-			})
+		command := strings.ToLower(scored.Script.Command)
+		combined := name + " " + command
+
+		if rank, hasRank := rankMap[name]; hasRank {
+			if rank >= multiWordMinRank {
+				// Additional filter: for multi-word queries, check that the result
+				// contains substrings matching multiple query words
+				matchCount := 0
+				for _, qWord := range queryWords {
+					if strings.Contains(combined, qWord) {
+						matchCount++
+					}
+				}
+
+				// Only include if it matches at least 2 query words (for 2+ word queries)
+				if len(queryWords) >= 2 && matchCount < 2 {
+					continue
+				}
+
+				results = append(results, searchResult{
+					scored: scored,
+					rank:   rank,
+				})
+			}
 		}
 	}
 

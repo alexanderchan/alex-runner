@@ -174,7 +174,12 @@ func main() {
 
 	// Handle list flag
 	if listScripts {
-		runner.PrintScriptsList(scoredScripts, packageManager)
+		// Apply search filter if provided
+		displayScripts := scoredScripts
+		if searchTerm != "" {
+			displayScripts = runner.SearchScripts(scoredScripts, searchTerm)
+		}
+		runner.PrintScriptsList(displayScripts, packageManager)
 		os.Exit(0)
 	}
 
