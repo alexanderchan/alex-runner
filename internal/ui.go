@@ -267,7 +267,7 @@ func (m *filterableSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		case "esc", "ctrl+u", "alt+backspace", "ctrl+backspace":
+		case "esc", "ctrl+u", "alt+backspace", "ctrl+backspace", "ctrl+w":
 			// Clear filter and show all scripts
 			// Multiple shortcuts for different terminal/platform preferences:
 			// - esc: universal
