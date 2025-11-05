@@ -22,7 +22,7 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 
 ## Demo Flow
 
-![Alex Runner Demo](public/images/demo.webp)
+![Alex Runner Demo](public/images/demo.gif)
 
 When you run `alex-runner`:
 

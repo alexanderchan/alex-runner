@@ -6,13 +6,14 @@ https://github.com/charmbracelet/vhs?tab=readme-ov-file#record-tapes
 1. record
 
 ```bash
+cd example
 vhs record > cassette.tape
 ```
 
 2. Set the output file settings in the tape
 
 ```bash
-Output ./public/images/demo.gif
+Output ../public/images/demo.gif
 Set TypingSpeed 0.1s
 ```
 
