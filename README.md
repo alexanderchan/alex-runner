@@ -12,8 +12,10 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 - **Live filtering**: Type to instantly filter scripts - no special keys needed
 - **Beautiful TUI**: Powered by Bubble Tea with syntax highlighting and clear command previews
 - **Multi-package manager**: Automatically detects npm, pnpm, or yarn
+- **Makefile support**: Run Makefile targets alongside npm scripts
 - **Per-directory tracking**: Each project has its own usage history
 - **Fuzzy search**: Quickly find scripts by name or command content
+- **Smart search ranking**: 6-tier priority system from exact matches to fuzzy command matches
 - **Zero configuration**: Just install and run
 
 ## Demo Flow
@@ -125,6 +127,23 @@ alex-runner --list
 
 Displays all scripts with their frecency scores and usage stats.
 
+### Using Makefile Targets
+
+alex-runner automatically detects and includes Makefile targets:
+
+```bash
+# Shows both package.json scripts AND Makefile targets
+alex-runner
+
+# Show only Makefile targets
+alex-runner --use-makefile
+
+# Show only package.json scripts
+alex-runner --use-package-json
+```
+
+Makefile targets are displayed with a "make" indicator and run with `make target-name` instead of the package manager.
+
 ### Reset History
 
 ```bash
@@ -153,12 +172,15 @@ This means recently used scripts get a boost, but frequently used scripts remain
 
 ## Package Manager Detection
 
-alex-runner automatically detects your package manager:
+alex-runner automatically detects your package manager by searching for lock files (checks git root first, then current directory):
 
-- Looks for `pnpm-lock.yaml` → uses `pnpm`
-- Looks for `yarn.lock` → uses `yarn`
-- Looks for `package-lock.json` → uses `npm`
-- Defaults to `npm`
+1. `yarn.lock` found → uses `yarn`
+2. `pnpm-lock.yaml` found → uses `pnpm`
+3. `package-lock.json` found → uses `npm`
+4. `package.json` only (no lock file) → defaults to `pnpm`
+5. No files found → falls back to `npm`
+
+Detection results are cached per directory for performance. Use `--no-cache` to force re-detection.
 
 ## Data Storage
 
@@ -246,17 +268,151 @@ build
   Run with: pnpm run build
 ```
 
-## Flags
+## Command-Line Flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--last` | `-l` | "I'm feeling lucky" - run most frecent immediately |
-| `--search` | `-s` | Show selector filtered to search term |
-| `--list` | | List all scripts with frecency scores |
-| `--reset` | | Clear usage history for current directory |
-| `--global-reset` | | Clear all usage history |
-| `--help` | `-h` | Show help message |
-| (positional arg) | | Same as `--search` - `alex-runner build` |
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--last` | `-l` | boolean | false | "I'm feeling lucky" - run most frecent immediately |
+| `--search` | `-s` | string | "" | Show selector filtered to search term |
+| `--list` | | boolean | false | List all scripts with frecency scores |
+| `--reset` | | boolean | false | Clear usage history for current directory |
+| `--global-reset` | | boolean | false | Clear all usage history |
+| `--use-package-json` | | boolean | false | Only show package.json scripts (ignore Makefile) |
+| `--use-makefile` | | boolean | false | Only show Makefile targets (ignore package.json) |
+| `--no-cache` | | boolean | false | Re-detect package manager instead of using cached detection |
+| `--help` | `-h` | boolean | false | Show help message |
+| (positional arg) | | string | "" | Same as `--search` - `alex-runner build` |
+
+## Configuration & Advanced Options
+
+### Frecency Algorithm Parameters
+
+The ranking algorithm uses these weights (defined in source):
+
+```go
+frecency_score = (use_count × 0.4) + (time_score × 0.6)
+```
+
+**Time-based scores:**
+| Duration | Score | Impact |
+|----------|-------|--------|
+| Last 24 hours | 1.0 | Maximum recency boost |
+| Last week (7 days) | 0.5 | Medium recency boost |
+| Last month (30 days) | 0.2 | Low recency boost |
+| Older than 30 days | 0.1 | Minimal recency boost |
+
+**Star ratings:**
+| Frecency Score | Stars | Visual |
+|---------------|-------|--------|
+| ≥ 10 | 5 stars | ★★★★★ |
+| ≥ 6 | 4.5 stars | ★★★★☆ |
+| ≥ 3 | 3 stars | ★★★☆☆ |
+| ≥ 1 | 2 stars | ★★☆☆☆ |
+| > 0 | 1 star | ★☆☆☆☆ |
+| = 0 | 0 stars | ☆☆☆☆☆ (never used) |
+
+### Search Ranking System
+
+When you filter scripts, they're ranked by match quality:
+
+| Priority | Match Type | Rank | Example |
+|----------|-----------|------|---------|
+| 1 | Exact name match | 1000 | "build" → "build" |
+| 2 | Name prefix | 500 | "bui" → "build" |
+| 3 | Name substring | 300 | "ild" in "build" |
+| 4 | Fuzzy name match | 200 | "bld" → "build" |
+| 5 | Command substring | 100 | "tsc" in "tsc --noEmit" |
+| 6 | Fuzzy command match | 50 | Fuzzy match in command text |
+
+Scripts with the same rank are then sorted by frecency score.
+
+### Package Manager Detection
+
+Detection happens in this order (searches git root first, then current directory):
+
+1. **yarn.lock** found → uses `yarn`
+2. **pnpm-lock.yaml** found → uses `pnpm`
+3. **package-lock.json** found → uses `npm`
+4. **package.json** only (no lock file) → defaults to `pnpm`
+5. **No files found** → falls back to `npm`
+
+**Cache behavior**: Detection result is cached per directory. Use `--no-cache` to force re-detection.
+
+### Makefile Support
+
+alex-runner can also run Makefile targets alongside npm scripts:
+
+**Parsing rules:**
+- Targets must match pattern: `targetname: [dependencies]`
+- Commands must be indented with TAB characters
+- Comments (`#`) and `.PHONY` targets are ignored
+- The `@` prefix (echo suppression) is automatically removed
+- Multiple commands for one target are combined with `&&`
+
+**Filtering:**
+- By default, shows both package.json scripts AND Makefile targets
+- Use `--use-package-json` to show only npm/yarn/pnpm scripts
+- Use `--use-makefile` to show only Makefile targets
+
+### UI Configuration Constants
+
+These values are defined in source code and control the interface:
+
+**Display sizing:**
+```go
+minViewportHeight     = 5     // Minimum terminal height
+headerFooterLines     = 6     // Lines for title/filter/help
+linesPerScriptOption  = 2     // Lines per script item
+filterCharLimit       = 100   // Max filter input length
+commandMaxWidthBuffer = 5     // Space for "..." truncation
+```
+
+**Keyboard controls:**
+- **↑** / **k** - Move selection up (wraps around)
+- **↓** / **j** - Move selection down (wraps around)
+- **Enter** - Execute selected script
+- **q** / **Ctrl+C** - Quit without running
+- **Type** - Live filter scripts
+- **Esc** - Clear filter
+- **Backspace** - Delete filter character
+
+### Database Schema
+
+Location: `~/.config/alex-runner/alex-runner.sqlite.db`
+
+**script_usage table:**
+```sql
+CREATE TABLE script_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  directory TEXT NOT NULL,
+  script_name TEXT NOT NULL,
+  last_used TIMESTAMP NOT NULL,
+  use_count INTEGER DEFAULT 1,
+  UNIQUE(directory, script_name)
+);
+
+CREATE INDEX idx_directory ON script_usage(directory);
+CREATE INDEX idx_frecency ON script_usage(directory, last_used DESC, use_count DESC);
+```
+
+**package_manager_cache table:**
+```sql
+CREATE TABLE package_manager_cache (
+  directory TEXT PRIMARY KEY,
+  package_manager TEXT NOT NULL,
+  detected_at TIMESTAMP NOT NULL
+);
+```
+
+### Time Display Format
+
+Last used timestamps are displayed as:
+- < 1 minute: "just now"
+- < 1 hour: "N mins ago" or "1 min ago"
+- < 24 hours: "Nh ago"
+- < 7 days: "Nd ago"
+- < 30 days: "Nw ago"
+- ≥ 30 days: "Nmo ago"
 
 ## Tips
 
@@ -281,7 +437,7 @@ build
 ## Requirements
 
 - Go 1.23 or higher
-- A project with `package.json` and scripts defined
+- A project with `package.json` and scripts defined, and/or a `Makefile` with targets
 
 ## Contributing
 
