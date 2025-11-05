@@ -358,18 +358,8 @@ func (m *filterableSelector) filterScripts() {
 		return
 	}
 
-	// Case-insensitive substring matching on script name and command
-	filterLower := strings.ToLower(filterValue)
-	m.filteredScripts = nil
-
-	for _, script := range m.allScripts {
-		nameLower := strings.ToLower(script.Script.Name)
-		commandLower := strings.ToLower(script.Script.Command)
-
-		if strings.Contains(nameLower, filterLower) || strings.Contains(commandLower, filterLower) {
-			m.filteredScripts = append(m.filteredScripts, script)
-		}
-	}
+	// Use the fuzzy SearchScripts function for consistent behavior
+	m.filteredScripts = SearchScripts(m.allScripts, filterValue)
 }
 
 // View renders the UI
