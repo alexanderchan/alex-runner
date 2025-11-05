@@ -1,0 +1,20 @@
+{
+  "name": "alex-runner",
+  "version": "0.1.0",
+  "description": "A smart, frecency-based npm/pnpm/yarn script runner",
+  "scripts": {
+    "build": "go build -o alex-runner ./cmd/alex-runner",
+    "test": "go test ./internal/... -v",
+    "install": "go install ./cmd/alex-runner"
+  },
+  "keywords": [
+    "npm",
+    "scripts",
+    "runner",
+    "frecency",
+    "cli",
+    "go"
+  ],
+  "author": "Alex Chan",
+  "license": "MIT"
+}
