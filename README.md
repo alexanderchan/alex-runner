@@ -2,7 +2,9 @@
 
 A smart, frecency-based npm script runner that learns which scripts you use most often and suggests them automatically.
 
-## problem
+![Alex Runner Logo](public/images/logo.jpg)
+
+## Problem
 
 Sometimes there's a lot of scripts but you only really use a few of them and forget their names. alex-runner helps you remember which scripts you use most often and suggests them automatically.
 
