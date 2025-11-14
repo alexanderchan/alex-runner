@@ -15,6 +15,7 @@ type ScoredScript struct {
 	FrecencyScore float64
 	LastUsed     *time.Time
 	UseCount     int
+	IsPinned     bool
 }
 
 func CalculateTimeScore(lastUsed time.Time) float64 {
@@ -40,10 +41,11 @@ func CalculateFrecency(useCount int, lastUsed time.Time) float64 {
 }
 
 func ScoreScripts(scripts []NPMScript, usageStats []ScriptUsage) []ScoredScript {
-	// Create a map of script names to usage stats for quick lookup
+	// Create a map using (script_name, source) as composite key for quick lookup
 	usageMap := make(map[string]ScriptUsage)
 	for _, usage := range usageStats {
-		usageMap[usage.ScriptName] = usage
+		key := usage.ScriptName + ":" + usage.Source
+		usageMap[key] = usage
 	}
 
 	scoredScripts := make([]ScoredScript, 0, len(scripts))
@@ -53,22 +55,32 @@ func ScoreScripts(scripts []NPMScript, usageStats []ScriptUsage) []ScoredScript 
 			Script: script,
 		}
 
-		if usage, exists := usageMap[script.Name]; exists {
+		key := script.Name + ":" + script.Source
+		if usage, exists := usageMap[key]; exists {
 			scored.FrecencyScore = CalculateFrecency(usage.UseCount, usage.LastUsed)
 			scored.LastUsed = &usage.LastUsed
 			scored.UseCount = usage.UseCount
+			scored.IsPinned = usage.IsPinned
 		} else {
 			// New script with no history
 			scored.FrecencyScore = 0.0
 			scored.LastUsed = nil
 			scored.UseCount = 0
+			scored.IsPinned = false
 		}
 
 		scoredScripts = append(scoredScripts, scored)
 	}
 
-	// Sort by frecency score descending (highest score first)
+	// Sort by pinned status first, then by frecency score
+	// Pinned scripts always appear first, sorted by frecency among themselves
+	// Unpinned scripts follow, sorted by frecency
 	sort.Slice(scoredScripts, func(i, j int) bool {
+		// If one is pinned and the other isn't, pinned comes first
+		if scoredScripts[i].IsPinned != scoredScripts[j].IsPinned {
+			return scoredScripts[i].IsPinned
+		}
+		// Otherwise, sort by frecency score
 		return scoredScripts[i].FrecencyScore > scoredScripts[j].FrecencyScore
 	})
 

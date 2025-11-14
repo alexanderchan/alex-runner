@@ -36,7 +36,7 @@ func TestRecordUsage(t *testing.T) {
 	scriptName := "dev"
 
 	// Record first usage
-	err := db.RecordUsage(directory, scriptName)
+	err := db.RecordUsage(directory, scriptName, "npm")
 	if err != nil {
 		t.Fatalf("failed to record usage: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestRecordUsageIncrementsCount(t *testing.T) {
 
 	// Record usage multiple times
 	for i := 0; i < 5; i++ {
-		err := db.RecordUsage(directory, scriptName)
+		err := db.RecordUsage(directory, scriptName, "pnpm")
 		if err != nil {
 			t.Fatalf("failed to record usage: %v", err)
 		}
@@ -99,7 +99,7 @@ func TestMultipleScriptsInDirectory(t *testing.T) {
 
 	// Record usage for multiple scripts
 	for _, script := range scripts {
-		err := db.RecordUsage(directory, script)
+		err := db.RecordUsage(directory, script, "make")
 		if err != nil {
 			t.Fatalf("failed to record usage for %s: %v", script, err)
 		}
@@ -124,12 +124,12 @@ func TestMultipleDirectories(t *testing.T) {
 	scriptName := "dev"
 
 	// Record usage in both directories
-	err := db.RecordUsage(dir1, scriptName)
+	err := db.RecordUsage(dir1, scriptName, "npm")
 	if err != nil {
 		t.Fatalf("failed to record usage in dir1: %v", err)
 	}
 
-	err = db.RecordUsage(dir2, scriptName)
+	err = db.RecordUsage(dir2, scriptName, "npm")
 	if err != nil {
 		t.Fatalf("failed to record usage in dir2: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestResetDirectory(t *testing.T) {
 
 	// Record usage for multiple scripts
 	for _, script := range scripts {
-		err := db.RecordUsage(directory, script)
+		err := db.RecordUsage(directory, script, "pnpm")
 		if err != nil {
 			t.Fatalf("failed to record usage: %v", err)
 		}
@@ -195,7 +195,7 @@ func TestResetAll(t *testing.T) {
 
 	// Record usage in multiple directories
 	for _, dir := range directories {
-		err := db.RecordUsage(dir, "dev")
+		err := db.RecordUsage(dir, "dev", "yarn")
 		if err != nil {
 			t.Fatalf("failed to record usage: %v", err)
 		}
@@ -230,7 +230,7 @@ func TestLastUsedTimestamp(t *testing.T) {
 	beforeTime := time.Now()
 	time.Sleep(10 * time.Millisecond)
 
-	err := db.RecordUsage(directory, scriptName)
+	err := db.RecordUsage(directory, scriptName, "npm")
 	if err != nil {
 		t.Fatalf("failed to record usage: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestDatabasePersistence(t *testing.T) {
 	directory := "/test/project"
 	scriptName := "dev"
 
-	err = db1.RecordUsage(directory, scriptName)
+	err = db1.RecordUsage(directory, scriptName, "make")
 	if err != nil {
 		t.Fatalf("failed to record usage: %v", err)
 	}

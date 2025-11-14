@@ -136,8 +136,14 @@ func FormatScriptOption(scored ScoredScript) string {
 }
 
 func FormatScriptOptionWithWidth(scored ScoredScript, maxWidth int) string {
-	// Format: "script-name → command [★★★★☆ 24 runs, 2h ago]"
-	scriptName := scriptNameStyle.Render(scored.Script.Name)
+	// Format: "[📌] script-name → command [★★★★☆ 24 runs, 2h ago]"
+	// Add pin indicator if pinned
+	pinIndicator := ""
+	if scored.IsPinned {
+		pinIndicator = "📌 "
+	}
+
+	scriptName := scriptNameStyle.Render(pinIndicator + scored.Script.Name)
 
 	// Prepare metadata with source indicator
 	var metadata string
@@ -171,7 +177,7 @@ func FormatScriptOptionWithWidth(scored ScoredScript, maxWidth int) string {
 	// Calculate available width for command (accounting for prefix, metadata, buffer)
 	commandText := scored.Script.Command
 	if maxWidth > 0 {
-		// Account for: "  " (2 chars) + metadata + buffer
+		// Account for: "  " (2 chars) + metadata + buffer + pin indicator
 		metadataWidth := lipgloss.Width(metadata)
 		availableWidth := maxWidth - 2 - metadataWidth - commandMaxWidthBuffer
 
@@ -216,7 +222,11 @@ func PromptForDefault(scored ScoredScript) (bool, error) {
 
 func ShowScriptSelection(scoredScripts []ScoredScript, initialFilter string) (*ScoredScript, error) {
 	// Use the custom filterable selector for all cases now (provides dynamic sizing)
-	return ShowScriptSelectionWithFilter(scoredScripts, initialFilter)
+	return ShowScriptSelectionWithFilter(scoredScripts, initialFilter, nil, "")
+}
+
+func ShowScriptSelectionWithDB(scoredScripts []ScoredScript, initialFilter string, db *Database, directory string) (*ScoredScript, error) {
+	return ShowScriptSelectionWithFilter(scoredScripts, initialFilter, db, directory)
 }
 
 func PrintScriptsList(scoredScripts []ScoredScript, packageManager string) {
@@ -242,6 +252,8 @@ type filterableSelector struct {
 	width           int
 	height          int
 	quitting        bool
+	db              *Database
+	directory       string
 }
 
 // Init initializes the filterableSelector model
@@ -265,6 +277,32 @@ func (m *filterableSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.result = &m.filteredScripts[m.selected]
 				m.quitting = true
 				return m, tea.Quit
+			}
+
+		case "alt+p":
+			// Toggle pin for the currently selected script
+			if len(m.filteredScripts) > 0 && m.selected < len(m.filteredScripts) && m.db != nil {
+				selectedScript := &m.filteredScripts[m.selected]
+				isPinned, err := m.db.TogglePin(m.directory, selectedScript.Script.Name, selectedScript.Script.Source)
+				if err == nil {
+					// Update the IsPinned status in the current script
+					selectedScript.IsPinned = isPinned
+
+					// Update in allScripts array (match both name and source)
+					for i := range m.allScripts {
+						if m.allScripts[i].Script.Name == selectedScript.Script.Name &&
+							m.allScripts[i].Script.Source == selectedScript.Script.Source {
+							m.allScripts[i].IsPinned = isPinned
+							break
+						}
+					}
+
+					// Re-sort scripts to move pinned items to top
+					m.filteredScripts = m.allScripts
+					if m.filter.Value() != "" {
+						m.filterScripts()
+					}
+				}
 			}
 
 		case "esc", "ctrl+u", "alt+backspace", "ctrl+backspace", "ctrl+w":
@@ -454,14 +492,14 @@ func (m *filterableSelector) View() string {
 	}
 
 	// Help text
-	help := metadataStyle.Render("\n↑/↓: navigate • enter: select • esc: clear • q: quit")
+	help := metadataStyle.Render("\n↑/↓: navigate • enter: select • alt-p: toggle pin • esc: clear • q: quit")
 	s.WriteString(help)
 
 	return s.String()
 }
 
 // ShowScriptSelectionWithFilter shows an interactive script selector with pre-populated filter
-func ShowScriptSelectionWithFilter(scoredScripts []ScoredScript, initialFilter string) (*ScoredScript, error) {
+func ShowScriptSelectionWithFilter(scoredScripts []ScoredScript, initialFilter string, db *Database, directory string) (*ScoredScript, error) {
 	if len(scoredScripts) == 0 {
 		return nil, fmt.Errorf("no scripts available")
 	}
@@ -489,6 +527,8 @@ func ShowScriptSelectionWithFilter(scoredScripts []ScoredScript, initialFilter s
 		selected:   0,
 		width:      0, // Will be set by WindowSizeMsg
 		height:     0, // Will be set by WindowSizeMsg
+		db:         db,
+		directory:  directory,
 	}
 
 	// Apply initial filter

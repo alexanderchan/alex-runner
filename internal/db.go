@@ -14,8 +14,10 @@ type ScriptUsage struct {
 	ID         int
 	Directory  string
 	ScriptName string
+	Source     string // "make", "npm", "pnpm", "yarn"
 	LastUsed   time.Time
 	UseCount   int
+	IsPinned   bool
 }
 
 type Database struct {
@@ -57,9 +59,11 @@ func createSchema(db *sql.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		directory TEXT NOT NULL,
 		script_name TEXT NOT NULL,
+		source TEXT DEFAULT '',
 		last_used TIMESTAMP NOT NULL,
 		use_count INTEGER DEFAULT 1,
-		UNIQUE(directory, script_name)
+		is_pinned INTEGER DEFAULT 0,
+		UNIQUE(directory, script_name, source)
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_directory ON script_usage(directory);
@@ -77,21 +81,25 @@ func createSchema(db *sql.DB) error {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
+	// Add columns to existing tables (for migration)
+	_, _ = db.Exec(`ALTER TABLE script_usage ADD COLUMN is_pinned INTEGER DEFAULT 0`)
+	_, _ = db.Exec(`ALTER TABLE script_usage ADD COLUMN source TEXT DEFAULT ''`)
+
 	return nil
 }
 
-func (d *Database) RecordUsage(directory string, scriptName string) error {
+func (d *Database) RecordUsage(directory string, scriptName string, source string) error {
 	query := `
-	INSERT INTO script_usage (directory, script_name, last_used, use_count)
-	VALUES (?, ?, ?, 1)
-	ON CONFLICT(directory, script_name)
+	INSERT INTO script_usage (directory, script_name, source, last_used, use_count)
+	VALUES (?, ?, ?, ?, 1)
+	ON CONFLICT(directory, script_name, source)
 	DO UPDATE SET
 		last_used = ?,
 		use_count = use_count + 1
 	`
 
 	now := time.Now()
-	_, err := d.db.Exec(query, directory, scriptName, now, now)
+	_, err := d.db.Exec(query, directory, scriptName, source, now, now)
 	if err != nil {
 		return fmt.Errorf("failed to record usage: %w", err)
 	}
@@ -101,10 +109,10 @@ func (d *Database) RecordUsage(directory string, scriptName string) error {
 
 func (d *Database) GetUsageStats(directory string) ([]ScriptUsage, error) {
 	query := `
-	SELECT id, directory, script_name, last_used, use_count
+	SELECT id, directory, script_name, COALESCE(source, ''), last_used, use_count, COALESCE(is_pinned, 0)
 	FROM script_usage
 	WHERE directory = ?
-	ORDER BY last_used DESC, use_count DESC
+	ORDER BY is_pinned DESC, last_used DESC, use_count DESC
 	`
 
 	rows, err := d.db.Query(query, directory)
@@ -116,10 +124,12 @@ func (d *Database) GetUsageStats(directory string) ([]ScriptUsage, error) {
 	var usages []ScriptUsage
 	for rows.Next() {
 		var usage ScriptUsage
-		err := rows.Scan(&usage.ID, &usage.Directory, &usage.ScriptName, &usage.LastUsed, &usage.UseCount)
+		var isPinnedInt int
+		err := rows.Scan(&usage.ID, &usage.Directory, &usage.ScriptName, &usage.Source, &usage.LastUsed, &usage.UseCount, &isPinnedInt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
+		usage.IsPinned = isPinnedInt != 0
 		usages = append(usages, usage)
 	}
 
@@ -178,4 +188,109 @@ func (d *Database) SetCachedPackageManager(directory string, packageManager stri
 		return fmt.Errorf("failed to cache package manager: %w", err)
 	}
 	return nil
+}
+
+// PinScript pins a script for the given directory
+func (d *Database) PinScript(directory string, scriptName string, source string) error {
+	query := `
+	INSERT INTO script_usage (directory, script_name, source, last_used, use_count, is_pinned)
+	VALUES (?, ?, ?, ?, 0, 1)
+	ON CONFLICT(directory, script_name, source)
+	DO UPDATE SET is_pinned = 1
+	`
+	_, err := d.db.Exec(query, directory, scriptName, source, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to pin script: %w", err)
+	}
+	return nil
+}
+
+// UnpinScript unpins a script for the given directory
+func (d *Database) UnpinScript(directory string, scriptName string, source string) error {
+	query := `UPDATE script_usage SET is_pinned = 0 WHERE directory = ? AND script_name = ? AND source = ?`
+	_, err := d.db.Exec(query, directory, scriptName, source)
+	if err != nil {
+		return fmt.Errorf("failed to unpin script: %w", err)
+	}
+	return nil
+}
+
+// TogglePin toggles the pin status of a script
+func (d *Database) TogglePin(directory string, scriptName string, source string) (bool, error) {
+	// Check current pin status
+	var isPinned int
+	query := `SELECT COALESCE(is_pinned, 0) FROM script_usage WHERE directory = ? AND script_name = ? AND source = ?`
+	err := d.db.QueryRow(query, directory, scriptName, source).Scan(&isPinned)
+
+	if err == sql.ErrNoRows {
+		// Script doesn't exist in usage table yet, pin it
+		if err := d.PinScript(directory, scriptName, source); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check pin status: %w", err)
+	}
+
+	// Toggle the pin status
+	if isPinned != 0 {
+		if err := d.UnpinScript(directory, scriptName, source); err != nil {
+			return false, err
+		}
+		return false, nil
+	} else {
+		if err := d.PinScript(directory, scriptName, source); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+}
+
+// IsPinned checks if a script is pinned
+func (d *Database) IsPinned(directory string, scriptName string, source string) (bool, error) {
+	var isPinned int
+	query := `SELECT COALESCE(is_pinned, 0) FROM script_usage WHERE directory = ? AND script_name = ? AND source = ?`
+	err := d.db.QueryRow(query, directory, scriptName, source).Scan(&isPinned)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check pin status: %w", err)
+	}
+
+	return isPinned != 0, nil
+}
+
+// FindScriptsByName finds all scripts with the given name across all sources
+func (d *Database) FindScriptsByName(directory string, scriptName string) ([]ScriptUsage, error) {
+	query := `
+	SELECT id, directory, script_name, COALESCE(source, ''), last_used, use_count, COALESCE(is_pinned, 0)
+	FROM script_usage
+	WHERE directory = ? AND script_name = ?
+	ORDER BY source
+	`
+
+	rows, err := d.db.Query(query, directory, scriptName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query scripts: %w", err)
+	}
+	defer rows.Close()
+
+	var usages []ScriptUsage
+	for rows.Next() {
+		var usage ScriptUsage
+		var isPinnedInt int
+		err := rows.Scan(&usage.ID, &usage.Directory, &usage.ScriptName, &usage.Source, &usage.LastUsed, &usage.UseCount, &isPinnedInt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		usage.IsPinned = isPinnedInt != 0
+		usages = append(usages, usage)
+	}
+
+	return usages, nil
 }
