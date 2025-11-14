@@ -13,15 +13,17 @@ import (
 
 func main() {
 	var (
-		useLast          bool
-		searchTerm       string
-		listScripts      bool
-		resetDir         bool
-		resetAll         bool
-		showHelp         bool
-		usePackageJSON   bool
-		useMakefile      bool
-		noCache          bool
+		useLast            bool
+		searchTerm         string
+		listScripts        bool
+		listNames          bool
+		resetDir           bool
+		resetAll           bool
+		showHelp           bool
+		usePackageJSON     bool
+		useMakefile        bool
+		noCache            bool
+		generateCompletion string
 	)
 
 	// Split arguments at -- to separate our flags from script arguments
@@ -36,8 +38,10 @@ func main() {
 	flag.StringVar(&searchTerm, "s", "", "Search term for script selection")
 	flag.StringVar(&searchTerm, "search", "", "Search term for script selection")
 	flag.BoolVar(&listScripts, "list", false, "List all scripts with frecency scores")
+	flag.BoolVar(&listNames, "list-names", false, "List script names only (for shell completion)")
 	flag.BoolVar(&resetDir, "reset", false, "Clear usage history for current directory")
 	flag.BoolVar(&resetAll, "global-reset", false, "Clear all usage history")
+	flag.StringVar(&generateCompletion, "generate-completion", "", "Generate shell completion script (bash|zsh|fish)")
 	flag.BoolVar(&showHelp, "h", false, "Show help")
 	flag.BoolVar(&showHelp, "help", false, "Show help")
 	flag.BoolVar(&usePackageJSON, "use-package-json", false, "Only show package.json scripts (ignore Makefile)")
@@ -53,6 +57,27 @@ func main() {
 
 	if showHelp {
 		printHelp()
+		os.Exit(0)
+	}
+
+	// Handle completion generation
+	if generateCompletion != "" {
+		shell := strings.ToLower(generateCompletion)
+		switch shell {
+		case "bash":
+			fmt.Print(runner.GenerateBashCompletion())
+			fmt.Fprintln(os.Stderr, "\n"+runner.GetCompletionInstallInstructions("bash"))
+		case "zsh":
+			fmt.Print(runner.GenerateZshCompletion())
+			fmt.Fprintln(os.Stderr, "\n"+runner.GetCompletionInstallInstructions("zsh"))
+		case "fish":
+			fmt.Print(runner.GenerateFishCompletion())
+			fmt.Fprintln(os.Stderr, "\n"+runner.GetCompletionInstallInstructions("fish"))
+		default:
+			fmt.Fprintf(os.Stderr, "Error: unsupported shell '%s'\n\n", generateCompletion)
+			fmt.Fprint(os.Stderr, runner.ListCompletions())
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 
@@ -191,6 +216,24 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Handle list-names flag (for shell completion)
+	if listNames {
+		// Apply search filter if provided
+		displayScripts := scoredScripts
+		if searchTerm != "" {
+			displayScripts = runner.SearchScripts(scoredScripts, searchTerm)
+		}
+		// Print just the script names, one per line (deduplicated)
+		seen := make(map[string]bool)
+		for _, script := range displayScripts {
+			if !seen[script.Script.Name] {
+				fmt.Println(script.Script.Name)
+				seen[script.Script.Name] = true
+			}
+		}
+		os.Exit(0)
+	}
+
 	var selectedScript *runner.ScoredScript
 
 	// Handle search term with -l flag: "I'm feeling lucky" with search
@@ -299,15 +342,17 @@ USAGE:
     alex-runner [FLAGS] [SEARCH_TERM] [-- SCRIPT_ARGS...]
 
 FLAGS:
-    -l, --last               Run the most frecent script immediately
-    -s, --search <term>      Search for scripts matching term
-    --list                   List all scripts with frecency scores
-    --use-package-json       Only show package.json scripts (ignore Makefile)
-    --use-makefile           Only show Makefile targets (ignore package.json)
-    --no-cache               Re-detect package manager (ignore cached detection)
-    --reset                  Clear usage history for current directory
-    --global-reset           Clear all usage history
-    -h, --help               Show this help message
+    -l, --last                         Run the most frecent script immediately
+    -s, --search <term>                Search for scripts matching term
+    --list                             List all scripts with frecency scores
+    --list-names                       List script names only (for completion)
+    --generate-completion <shell>      Generate shell completion (bash|zsh|fish)
+    --use-package-json                 Only show package.json scripts (ignore Makefile)
+    --use-makefile                     Only show Makefile targets (ignore package.json)
+    --no-cache                         Re-detect package manager (ignore cached detection)
+    --reset                            Clear usage history for current directory
+    --global-reset                     Clear all usage history
+    -h, --help                         Show this help message
 
 PASSING ARGUMENTS TO SCRIPTS:
     Use -- to pass additional arguments to the selected script.
@@ -338,6 +383,20 @@ BEHAVIOR:
     Use --use-makefile or --use-package-json to filter to a single source.
 
 The tool stores usage data per directory in ~/.config/alex-runner/
+
+SHELL COMPLETION:
+    Enable tab completion for your shell:
+
+    Bash:
+        alex-runner --generate-completion bash > ~/.alex-runner-completion.bash
+        echo 'source ~/.alex-runner-completion.bash' >> ~/.bashrc
+
+    Zsh:
+        alex-runner --generate-completion zsh > ~/.alex-runner-completion.zsh
+        echo 'source ~/.alex-runner-completion.zsh' >> ~/.zshrc
+
+    Fish:
+        alex-runner --generate-completion fish > ~/.config/fish/completions/alex-runner.fish
 `
 	fmt.Println(help)
 }

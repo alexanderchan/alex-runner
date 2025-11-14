@@ -13,6 +13,7 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 - **Frecency-based suggestions**: Combines frequency and recency to suggest the scripts you're most likely to need
 - **Live filtering**: Type to instantly filter scripts - no special keys needed
 - **Beautiful TUI**: Powered by Bubble Tea with syntax highlighting and clear command previews
+- **Shell completion**: Tab completion for bash/zsh/fish with frecency-aware script suggestions
 - **Multi-package manager**: Automatically detects npm, pnpm, or yarn
 - **Makefile support**: Run Makefile targets alongside npm scripts
 - **Per-directory tracking**: Each project has its own usage history
@@ -82,6 +83,140 @@ Make sure `$GOPATH/bin` is in your PATH:
 
 ```bash
 export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+### Shell Completion
+
+alex-runner supports tab completion for bash, zsh, and fish shells. Completions are **frecency-aware**, meaning your most-used scripts appear first!
+
+#### Bash
+
+```bash
+# Generate and save completion script
+alex-runner --generate-completion bash > ~/.alex-runner-completion.bash
+
+# Add to your ~/.bashrc
+echo 'source ~/.alex-runner-completion.bash' >> ~/.bashrc
+
+# Reload your shell
+source ~/.bashrc
+```
+
+**System-wide installation:**
+```bash
+sudo alex-runner --generate-completion bash > /etc/bash_completion.d/alex-runner
+```
+
+#### Zsh
+
+```bash
+# Generate and save completion script
+alex-runner --generate-completion zsh > ~/.alex-runner-completion.zsh
+
+# Add to your ~/.zshrc (MUST be AFTER compinit)
+echo 'source ~/.alex-runner-completion.zsh' >> ~/.zshrc
+
+# Reload your shell
+source ~/.zshrc
+```
+
+**Important:** The completion must be sourced **after** `compinit` is called in your `.zshrc`. Example:
+
+```zsh
+# In your ~/.zshrc:
+autoload -Uz compinit && compinit
+
+# AFTER compinit, source alex-runner completion
+source ~/.alex-runner-completion.zsh
+```
+
+**Using a completion directory:**
+```bash
+# Create directory if it doesn't exist
+mkdir -p ~/.zsh/completions
+
+# Generate completion file
+alex-runner --generate-completion zsh > ~/.zsh/completions/_alex-runner
+
+# Add to ~/.zshrc (before compinit)
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -Uz compinit && compinit' >> ~/.zshrc
+
+# Reload shell
+exec zsh
+```
+
+#### Fish
+
+```bash
+# Create completions directory if needed
+mkdir -p ~/.config/fish/completions
+
+# Generate completion script
+alex-runner --generate-completion fish > ~/.config/fish/completions/alex-runner.fish
+
+# Reload completions (or restart fish)
+fish_update_completions
+```
+
+#### What Gets Completed
+
+- **Flags**: `-l`, `--last`, `-s`, `--search`, `--list`, `--reset`, etc.
+- **Script names**: Dynamically fetched from current directory (sorted by frecency!)
+- **Shell types**: After `--generate-completion`, suggests `bash`, `zsh`, `fish`
+- **Smart context**: After `--`, completions stop (those are script arguments)
+
+#### Testing Completions
+
+```bash
+# Tab completion for flags
+alex-runner --<TAB>
+# Shows: --last, --list, --search, --generate-completion, etc.
+
+# Tab completion for scripts (frecency-aware!)
+alex-runner <TAB>
+# Shows: dev, build, test, etc. (your most-used first)
+
+# After --search flag
+alex-runner --search <TAB>
+# Shows: dev, build, test, etc.
+```
+
+**Note:** Completions work in standard terminals (iTerm2, Terminal.app, Alacritty, etc.). Some terminals with custom completion systems (like Warp) may not support standard shell completions.
+
+#### Completion for Aliases
+
+If you have aliases for alex-runner (e.g., `alias rr="alex-runner"`), you need to register completion for them:
+
+**Zsh:**
+```zsh
+# In your ~/.zshrc, after sourcing the completion:
+alias rr="alex-runner"
+alias rrl="alex-runner -l"
+
+# Register completions for your aliases
+compdef _alex_runner rr
+compdef _alex_runner rrl
+```
+
+**Bash:**
+```bash
+# In your ~/.bashrc:
+alias rr="alex-runner"
+alias rrl="alex-runner -l"
+
+# Register completions for your aliases
+complete -F _alex_runner_completion rr
+complete -F _alex_runner_completion rrl
+```
+
+**Fish:**
+```fish
+# In your ~/.config/fish/config.fish:
+alias rr="alex-runner"
+alias rrl="alex-runner -l"
+
+# Fish automatically handles completion for aliases, no extra setup needed!
 ```
 
 ## Usage
@@ -310,6 +445,8 @@ build
 | `--last` | `-l` | boolean | false | "I'm feeling lucky" - run most frecent immediately |
 | `--search` | `-s` | string | "" | Show selector filtered to search term |
 | `--list` | | boolean | false | List all scripts with frecency scores |
+| `--list-names` | | boolean | false | List script names only (used for shell completion) |
+| `--generate-completion` | | string | "" | Generate shell completion script (bash\|zsh\|fish) |
 | `--reset` | | boolean | false | Clear usage history for current directory |
 | `--global-reset` | | boolean | false | Clear all usage history |
 | `--use-package-json` | | boolean | false | Only show package.json scripts (ignore Makefile) |
