@@ -123,6 +123,37 @@ alex-runner --search build
 
 Shows an interactive selector filtered to scripts matching "build". You confirm your choice before running - safe and fast!
 
+### Passing Arguments to Scripts
+
+You can pass additional arguments to scripts using the `--` separator:
+
+```bash
+# Pass arguments in interactive mode
+alex-runner -- --watch --verbose
+
+# Pass arguments with "feeling lucky" mode
+alex-runner -l test -- --reporter=verbose
+
+# Pass arguments with search
+alex-runner test -- --testPathPattern some/path --coverage
+```
+
+**How it works:**
+- **npm**: Automatically adds `--` separator (required by npm)
+  ```bash
+  # alex-runner runs: npm run test -- --watch
+  ```
+- **pnpm/yarn**: Passes arguments directly (no `--` needed)
+  ```bash
+  # alex-runner runs: pnpm run test --watch
+  ```
+- **make**: Appends arguments directly to the target
+  ```bash
+  # alex-runner runs: make test --verbose
+  ```
+
+This is especially useful for test runners, dev servers, and build tools that accept configuration flags.
+
 ### List All Scripts
 
 ```bash
@@ -286,6 +317,7 @@ build
 | `--no-cache` | | boolean | false | Re-detect package manager instead of using cached detection |
 | `--help` | `-h` | boolean | false | Show help message |
 | (positional arg) | | string | "" | Same as `--search` - `alex-runner build` |
+| `--` | | separator | - | Pass additional arguments to the script (e.g., `alex-runner test -- --watch`) |
 
 ## Configuration & Advanced Options
 
@@ -433,7 +465,13 @@ Last used timestamps are displayed as:
    rr lint      # Search and run lint script
    ```
 
-3. **Reset history if habits change**: If your workflow changes, reset the history:
+3. **Pass arguments with aliases**: Works seamlessly with `--`:
+   ```bash
+   rr test -- --watch --coverage
+   rrl test -- --reporter=verbose
+   ```
+
+4. **Reset history if habits change**: If your workflow changes, reset the history:
    ```bash
    alex-runner --reset
    ```
