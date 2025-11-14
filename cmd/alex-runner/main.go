@@ -25,15 +25,8 @@ func main() {
 	)
 
 	// Split arguments at -- to separate our flags from script arguments
-	var scriptArgs []string
 	args := os.Args[1:]
-	for i, arg := range args {
-		if arg == "--" {
-			scriptArgs = args[i+1:]
-			args = args[:i]
-			break
-		}
-	}
+	args, scriptArgs := runner.ParseArgs(args)
 
 	// Reset os.Args to only include our flags for flag.Parse()
 	os.Args = append([]string{os.Args[0]}, args...)
@@ -267,7 +260,12 @@ func main() {
 	} else {
 		// For npm/pnpm/yarn
 		if len(scriptArgs) > 0 {
-			fmt.Printf("\n🚀 Running: %s run %s %s\n\n", selectedScript.Script.Source, selectedScript.Script.Name, strings.Join(scriptArgs, " "))
+			// npm requires -- separator, pnpm/yarn don't
+			separator := ""
+			if selectedScript.Script.Source == "npm" {
+				separator = "-- "
+			}
+			fmt.Printf("\n🚀 Running: %s run %s %s%s\n\n", selectedScript.Script.Source, selectedScript.Script.Name, separator, strings.Join(scriptArgs, " "))
 		} else {
 			fmt.Printf("\n🚀 Running: %s run %s\n\n", selectedScript.Script.Source, selectedScript.Script.Name)
 		}
@@ -279,18 +277,12 @@ func main() {
 }
 
 func executeScript(command string, scriptName string, useRun bool, additionalArgs []string) error {
-	var cmdArgs []string
-	if useRun {
-		cmdArgs = []string{"run", scriptName}
-		// For npm/yarn/pnpm, append args directly
-		// Note: npm/yarn/pnpm handle arguments differently - they append them to the script command
-		// The -- separator would be included literally in older versions, so we omit it
-		cmdArgs = append(cmdArgs, additionalArgs...)
-	} else {
-		// For make, just append args directly
-		cmdArgs = []string{scriptName}
-		cmdArgs = append(cmdArgs, additionalArgs...)
-	}
+	cmdArgs := runner.BuildScriptArgs(runner.BuildScriptArgsParams{
+		Command:        command,
+		ScriptName:     scriptName,
+		UseRun:         useRun,
+		AdditionalArgs: additionalArgs,
+	})
 
 	cmd := exec.Command(command, cmdArgs...)
 	cmd.Stdout = os.Stdout
