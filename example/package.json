@@ -4,9 +4,10 @@
   "description": "A smart, frecency-based npm/pnpm/yarn script runner",
   "scripts": {
     "build": "go build -o alex-runner ./cmd/alex-runner",
-    "test": "go test ./internal/... -v",
+    "test": "vitest --watch=false",
     "install": "go install ./cmd/alex-runner",
     "hello": "echo \"👋 Hello from package json!\"",
+    "echo-args": "echo \"Arguments received: $@\"",
     "demo:record": "vhs record > cassette.tape",
     "demo:replay": "vhs cassette.tape"
   },
@@ -20,5 +21,8 @@
   ],
   "author": "Alex Chan",
   "license": "MIT",
-  "packageManager": "pnpm@10.19.0+sha512.c9fc7236e92adf5c8af42fd5bf1612df99c2ceb62f27047032f4720b33f8eacdde311865e91c411f2774f618d82f320808ecb51718bfa82c060c4ba7c76a32b8"
+  "packageManager": "pnpm@10.19.0+sha512.c9fc7236e92adf5c8af42fd5bf1612df99c2ceb62f27047032f4720b33f8eacdde311865e91c411f2774f618d82f320808ecb51718bfa82c060c4ba7c76a32b8",
+  "devDependencies": {
+    "vitest": "^4.0.8"
+  }
 }

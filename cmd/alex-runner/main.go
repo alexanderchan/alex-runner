@@ -24,6 +24,20 @@ func main() {
 		noCache          bool
 	)
 
+	// Split arguments at -- to separate our flags from script arguments
+	var scriptArgs []string
+	args := os.Args[1:]
+	for i, arg := range args {
+		if arg == "--" {
+			scriptArgs = args[i+1:]
+			args = args[:i]
+			break
+		}
+	}
+
+	// Reset os.Args to only include our flags for flag.Parse()
+	os.Args = append([]string{os.Args[0]}, args...)
+
 	flag.BoolVar(&useLast, "l", false, "Use the most frecent script immediately")
 	flag.BoolVar(&useLast, "last", false, "Use the most frecent script immediately")
 	flag.StringVar(&searchTerm, "s", "", "Search term for script selection")
@@ -39,7 +53,8 @@ func main() {
 	flag.Parse()
 
 	// If no flags provided but positional args exist, join all args as search term
-	if searchTerm == "" && !useLast && !listScripts && !resetDir && !resetAll && len(flag.Args()) > 0 {
+	// Allow search term with -l flag for "I'm feeling lucky" with search
+	if searchTerm == "" && !listScripts && !resetDir && !resetAll && len(flag.Args()) > 0 {
 		searchTerm = strings.Join(flag.Args(), " ")
 	}
 
@@ -240,28 +255,44 @@ func main() {
 
 	// Execute script based on its source
 	if selectedScript.Script.Source == "make" {
-		fmt.Printf("\n🚀 Running: make %s\n\n", selectedScript.Script.Name)
-		if err := executeScript("make", selectedScript.Script.Name, false); err != nil {
+		if len(scriptArgs) > 0 {
+			fmt.Printf("\n🚀 Running: make %s %s\n\n", selectedScript.Script.Name, strings.Join(scriptArgs, " "))
+		} else {
+			fmt.Printf("\n🚀 Running: make %s\n\n", selectedScript.Script.Name)
+		}
+		if err := executeScript("make", selectedScript.Script.Name, false, scriptArgs); err != nil {
 			fmt.Printf("Error: script execution failed: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
 		// For npm/pnpm/yarn
-		fmt.Printf("\n🚀 Running: %s run %s\n\n", selectedScript.Script.Source, selectedScript.Script.Name)
-		if err := executeScript(selectedScript.Script.Source, selectedScript.Script.Name, true); err != nil {
+		if len(scriptArgs) > 0 {
+			fmt.Printf("\n🚀 Running: %s run %s %s\n\n", selectedScript.Script.Source, selectedScript.Script.Name, strings.Join(scriptArgs, " "))
+		} else {
+			fmt.Printf("\n🚀 Running: %s run %s\n\n", selectedScript.Script.Source, selectedScript.Script.Name)
+		}
+		if err := executeScript(selectedScript.Script.Source, selectedScript.Script.Name, true, scriptArgs); err != nil {
 			fmt.Printf("Error: script execution failed: %v\n", err)
 			os.Exit(1)
 		}
 	}
 }
 
-func executeScript(command string, scriptName string, useRun bool) error {
-	var cmd *exec.Cmd
+func executeScript(command string, scriptName string, useRun bool, additionalArgs []string) error {
+	var cmdArgs []string
 	if useRun {
-		cmd = exec.Command(command, "run", scriptName)
+		cmdArgs = []string{"run", scriptName}
+		// For npm/yarn/pnpm, append args directly
+		// Note: npm/yarn/pnpm handle arguments differently - they append them to the script command
+		// The -- separator would be included literally in older versions, so we omit it
+		cmdArgs = append(cmdArgs, additionalArgs...)
 	} else {
-		cmd = exec.Command(command, scriptName)
+		// For make, just append args directly
+		cmdArgs = []string{scriptName}
+		cmdArgs = append(cmdArgs, additionalArgs...)
 	}
+
+	cmd := exec.Command(command, cmdArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -273,7 +304,7 @@ func printHelp() {
 	help := `alex-runner - Frecency-based npm script runner
 
 USAGE:
-    alex-runner [FLAGS] [SEARCH_TERM]
+    alex-runner [FLAGS] [SEARCH_TERM] [-- SCRIPT_ARGS...]
 
 FLAGS:
     -l, --last               Run the most frecent script immediately
@@ -286,15 +317,23 @@ FLAGS:
     --global-reset           Clear all usage history
     -h, --help               Show this help message
 
+PASSING ARGUMENTS TO SCRIPTS:
+    Use -- to pass additional arguments to the selected script.
+    Arguments after -- are passed directly to the script.
+    For npm/yarn/pnpm: runs as 'npm run script arg1 arg2'
+    For Makefile: runs as 'make target arg1 arg2'
+
 EXAMPLES:
-    alex-runner                  # Interactive mode with live filtering
-    alex-runner build            # Show selector filtered to "build" matches
-    alex-runner -l               # "I'm feeling lucky" - run most frecent immediately
-    alex-runner -l build         # Lucky + search - run first "build" match
-    alex-runner -s test          # Show selector filtered to "test" matches
-    alex-runner --list           # Show all scripts with stats
-    alex-runner --use-makefile   # Only show Makefile targets
-    alex-runner --reset          # Clear history for current project
+    alex-runner                                # Interactive mode with live filtering
+    alex-runner build                          # Show selector filtered to "build" matches
+    alex-runner -l                             # "I'm feeling lucky" - run most frecent immediately
+    alex-runner -l build                       # Lucky + search - run first "build" match
+    alex-runner -s test                        # Show selector filtered to "test" matches
+    alex-runner -l test -- --testPathPattern   # Run test with additional arguments
+    alex-runner -- --watch                     # Interactive mode, pass --watch to selected script
+    alex-runner --list                         # Show all scripts with stats
+    alex-runner --use-makefile                 # Only show Makefile targets
+    alex-runner --reset                        # Clear history for current project
 
 BEHAVIOR:
     By default, alex-runner will:
