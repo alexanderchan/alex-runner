@@ -10,6 +10,9 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 
 ## Features
 
+- **Script Pinning**: Pin your most important scripts to always appear first (📌)
+  - Use `--pin <script>` from CLI or press `alt-p` in the UI
+  - Handles duplicate script names across Makefile and package.json
 - **Frecency-based suggestions**: Combines frequency and recency to suggest the scripts you're most likely to need
 - **Live filtering**: Type to instantly filter scripts - no special keys needed
 - **Beautiful TUI**: Powered by Bubble Tea with syntax highlighting and clear command previews
@@ -17,6 +20,7 @@ Sometimes there's a lot of scripts but you only really use a few of them and for
 - **Multi-package manager**: Automatically detects npm, pnpm, or yarn
 - **Makefile support**: Run Makefile targets alongside npm scripts
 - **Per-directory tracking**: Each project has its own usage history
+- **Source-aware tracking**: Scripts from Makefile and package.json are tracked separately
 - **Fuzzy search**: Quickly find scripts by name or command content
 - **Smart search ranking**: 6-tier priority system from exact matches to fuzzy command matches
 - **Zero configuration**: Just install and run
@@ -219,6 +223,33 @@ alias rrl="alex-runner -l"
 # Fish automatically handles completion for aliases, no extra setup needed!
 ```
 
+## Upgrading
+
+### Upgrading to v0.2.0
+
+Version 0.2.0 includes a breaking change to the database schema to support script pinning and better source tracking.
+
+**Migration Required**: If upgrading from v0.1.0, you need to clear your database:
+
+```bash
+# Remove the old database
+rm ~/.config/alex-runner/alex-runner.sqlite.db
+
+# alex-runner will automatically create a new database with the updated schema on next run
+```
+
+**What changes:**
+- Your usage history will be reset
+- Scripts from Makefile and package.json are now tracked separately
+- Each script+source combination has its own frecency score and pin status
+
+**What's new:**
+- 📌 Pin scripts to always appear first
+- Better handling of duplicate script names from different sources
+- More accurate frecency tracking per source
+
+If you have critical usage history you want to preserve, stay on v0.1.0. Otherwise, the fresh start with improved tracking is recommended.
+
 ## Usage
 
 ### Interactive Mode (Default)
@@ -313,6 +344,33 @@ alex-runner --use-package-json
 ```
 
 Makefile targets are displayed with a "make" indicator and run with `make target-name` instead of the package manager.
+
+### Pin Scripts
+
+Pin your most important scripts to always appear first, regardless of frecency:
+
+```bash
+# Pin a script
+alex-runner --pin dev
+
+# If the script exists in both Makefile and package.json, you'll be prompted:
+Multiple scripts found with name 'dev':
+  1. dev (make)
+  2. dev (pnpm)
+Select which one to pin (1-2, or 'all'): 1
+
+# Unpin a script
+alex-runner --unpin dev
+
+# Toggle pin in interactive mode
+# Press alt-p (or option-p on Mac) to toggle pin for the selected script
+```
+
+Pinned scripts:
+- Show a 📌 indicator
+- Always appear at the top of the list
+- Are sorted by frecency among themselves
+- Are tracked per source (Makefile vs package.json)
 
 ### Reset History
 
