@@ -1,6 +1,6 @@
 {
   "name": "alex-runner",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A smart, frecency-based npm/pnpm/yarn script runner",
   "scripts": {
     "build": "go build -o alex-runner ./cmd/alex-runner",
