@@ -241,33 +241,6 @@ alias rrl="alex-runner -l"
 # Fish automatically handles completion for aliases, no extra setup needed!
 ```
 
-## Upgrading
-
-### Upgrading to v0.2.0
-
-Version 0.2.0 includes a breaking change to the database schema to support script pinning and better source tracking.
-
-**Migration Required**: If upgrading from v0.1.0, you need to clear your database:
-
-```bash
-# Remove the old database
-rm ~/.config/alex-runner/alex-runner.sqlite.db
-
-# alex-runner will automatically create a new database with the updated schema on next run
-```
-
-**What changes:**
-- Your usage history will be reset
-- Scripts from Makefile and package.json are now tracked separately
-- Each script+source combination has its own frecency score and pin status
-
-**What's new:**
-- 📌 Pin scripts to always appear first
-- Better handling of duplicate script names from different sources
-- More accurate frecency tracking per source
-
-If you have critical usage history you want to preserve, stay on v0.1.0. Otherwise, the fresh start with improved tracking is recommended.
-
 ## Usage
 
 ### Interactive Mode (Default)
