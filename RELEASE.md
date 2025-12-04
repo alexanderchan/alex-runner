@@ -5,7 +5,7 @@ This document describes how to create a new release of alex-runner.
 ## Prerequisites
 
 - Push access to the repository
-- pnpm installed (for changesets)
+- pnpm installed
 - GoReleaser installed locally (optional, for testing)
 
 ## Release Workflow
@@ -26,30 +26,25 @@ This will prompt you to:
 
 A markdown file will be created in `.changeset/` - commit this with your PR.
 
-### 2. Version and Release
+### 2. Release
 
-When ready to release:
+When ready to release, run:
 
 ```bash
-# Consume all changesets, bump version, update CHANGELOG.md
-pnpm changeset version
-
-# Review the changes
-git diff
-
-# Commit
-git add .
-git commit -m "chore: release v0.3.0"
-git push origin main
-
-# Create and push the tag
-git tag v0.3.0
-git push origin v0.3.0
+pnpm release
 ```
+
+This single command will:
+1. Check for uncommitted changes (fails if dirty)
+2. Check for pending changesets (fails if none)
+3. Run `changeset version` to bump version and update CHANGELOG.md
+4. Run `changeset tag` to create the git tag
+5. Commit with message `chore: release vX.X.X`
+6. Push commits and tags to origin
 
 ### 3. CI Builds the Release
 
-When the tag is pushed, GitHub Actions will:
+When the tag is pushed, GitHub Actions will automatically:
 - Build binaries for all supported platforms
 - Create archives (`.tar.gz` for Unix, `.zip` for Windows)
 - Generate checksums
