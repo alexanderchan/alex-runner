@@ -7,7 +7,8 @@
     "test": "go test ./internal/... -v",
     "install": "go install ./cmd/alex-runner",
     "hello": "echo \"👋 Hello from package json!\"",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "release": "tsx scripts/release.ts"
   },
   "keywords": [
     "npm",
@@ -21,6 +22,8 @@
   "license": "MIT",
   "packageManager": "pnpm@10.19.0+sha512.c9fc7236e92adf5c8af42fd5bf1612df99c2ceb62f27047032f4720b33f8eacdde311865e91c411f2774f618d82f320808ecb51718bfa82c060c4ba7c76a32b8",
   "devDependencies": {
-    "@changesets/cli": "^2.29.8"
+    "@changesets/cli": "^2.29.8",
+    "tsx": "^4.21.0",
+    "zx": "^8.8.5"
   }
 }
