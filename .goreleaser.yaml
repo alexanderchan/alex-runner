@@ -1,0 +1,132 @@
+# GoReleaser configuration for alex-runner
+# Documentation: https://goreleaser.com
+#
+# Note: This project uses modernc.org/sqlite which is a pure Go implementation.
+# No CGO required! This makes cross-compilation simple and straightforward.
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: alex-runner
+    main: ./cmd/alex-runner
+    binary: alex-runner
+    env:
+      - CGO_ENABLED=0  # Pure Go build - no CGO needed!
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Ignore combinations that don't make sense
+    ignore:
+      - goos: windows
+        goarch: arm64  # Windows ARM64 is not common yet
+    ldflags:
+      - -s -w  # Strip debug info for smaller binaries
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: alex-runner
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug Fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance Improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Other Changes'
+      order: 999
+
+# Homebrew tap (optional - uncomment if you want to publish to Homebrew)
+# brews:
+#   - name: alex-runner
+#     repository:
+#       owner: alexanderchan
+#       name: homebrew-tap
+#     folder: Formula
+#     homepage: https://github.com/alexanderchan/alex-runner
+#     description: A smart, frecency-based npm/pnpm/yarn script runner
+#     license: MIT
+#     test: |
+#       system "#{bin}/alex-runner --version"
+#     install: |
+#       bin.install "alex-runner"
+
+# Scoop bucket (optional - uncomment if you want to publish to Scoop)
+# scoops:
+#   - name: alex-runner
+#     repository:
+#       owner: alexanderchan
+#       name: scoop-bucket
+#     homepage: https://github.com/alexanderchan/alex-runner
+#     description: A smart, frecency-based npm/pnpm/yarn script runner
+#     license: MIT
+
+release:
+  github:
+    owner: alexanderchan
+    name: alex-runner
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## alex-runner {{ .Tag }}
+
+    A smart, frecency-based npm/pnpm/yarn/Makefile script runner.
+
+    ### Installation
+
+    Download the appropriate binary for your platform below, extract it, and add it to your PATH.
+
+    Or use `go install`:
+    ```bash
+    go install github.com/alexanderchan/alex-runner@{{ .Tag }}
+    ```
+  footer: |
+    **Full Changelog**: https://github.com/alexanderchan/alex-runner/compare/{{ .PreviousTag }}...{{ .Tag }}
+

@@ -35,3 +35,6 @@ yarn-error.log*
 # generated files
 /public/rss/
 /alex-runner
+
+# goreleaser
+/dist/

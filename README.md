@@ -51,16 +51,45 @@ When you run `alex-runner`:
 
 ## Installation
 
-### Via Go Install (Recommended)
+### Download Pre-built Binary (Recommended)
 
+Download the latest release for your platform from the [Releases page](https://github.com/alexanderchan/alex-runner/releases).
+
+**macOS:**
 ```bash
-go install github.com/alexanderchan/alex-runner@latest
+# For Apple Silicon (M1/M2/M3)
+curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Darwin_arm64.tar.gz | tar xz
+sudo mv alex-runner /usr/local/bin/
+
+# For Intel Macs
+curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Darwin_x86_64.tar.gz | tar xz
+sudo mv alex-runner /usr/local/bin/
 ```
 
-for development
+**Linux:**
+```bash
+# For ARM64
+curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Linux_arm64.tar.gz | tar xz
+sudo mv alex-runner /usr/local/bin/
+
+# For x86_64
+curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Linux_x86_64.tar.gz | tar xz
+sudo mv alex-runner /usr/local/bin/
+```
+
+**Windows:**
+Download the `.zip` file from the [Releases page](https://github.com/alexanderchan/alex-runner/releases), extract it, and add the directory to your PATH.
+
+### Via Go Install
 
 ```bash
-go install ./cmd/alex-runner
+go install github.com/alexanderchan/alex-runner/cmd/alex-runner@latest
+```
+
+Make sure `$GOPATH/bin` is in your PATH:
+
+```bash
+export PATH="$PATH:$(go env GOPATH)/bin"
 ```
 
 ### Manual Build
@@ -79,14 +108,6 @@ go build -o alex-runner ./cmd/alex-runner
 
 # Move to PATH
 sudo mv alex-runner /usr/local/bin/
-```
-
-### Add to PATH
-
-Make sure `$GOPATH/bin` is in your PATH:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
 ```
 
 ### Shell Completion
@@ -675,6 +696,35 @@ Last used timestamps are displayed as:
 
 - Go 1.23 or higher
 - A project with `package.json` and scripts defined, and/or a `Makefile` with targets
+
+## Releases
+
+alex-runner uses automated releases via GitHub Actions and GoReleaser. When a new version tag is pushed, pre-built binaries are automatically created for:
+
+- **macOS**: Intel (x86_64) and Apple Silicon (arm64)
+- **Linux**: x86_64 and arm64
+- **Windows**: x86_64
+
+### Creating a Release
+
+To create a new release:
+
+1. Update the version in `package.json`
+2. Update `CHANGELOG.md` with the new version and changes
+3. Commit the changes
+4. Create and push a new tag:
+   ```bash
+   git tag -a v0.3.0 -m "Release v0.3.0"
+   git push origin v0.3.0
+   ```
+5. GitHub Actions will automatically build and publish the release
+
+The release workflow will:
+- Build binaries for all supported platforms
+- Create archives (`.tar.gz` for Unix, `.zip` for Windows)
+- Generate checksums
+- Create a GitHub release with all artifacts
+- Include the changelog in the release notes
 
 ## Contributing
 
