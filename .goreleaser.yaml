@@ -23,10 +23,11 @@ builds:
     goarch:
       - amd64
       - arm64
-    # Ignore combinations that don't make sense
     ignore:
       - goos: windows
-        goarch: arm64  # Windows ARM64 is not common yet
+        goarch: arm64
+      - goos: darwin
+        goarch: amd64  # Most Macs are Apple Silicon now
     ldflags:
       - -s -w  # Strip debug info for smaller binaries
       - -X main.version={{.Version}}

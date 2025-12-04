@@ -51,19 +51,28 @@ When you run `alex-runner`:
 
 ## Installation
 
-### Download Pre-built Binary (Recommended)
+### Via Go Install (Recommended)
+
+```bash
+go install github.com/alexanderchan/alex-runner/cmd/alex-runner@latest
+```
+
+Make sure `$GOPATH/bin` is in your PATH:
+
+```bash
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+### Download Pre-built Binary
 
 Download the latest release for your platform from the [Releases page](https://github.com/alexanderchan/alex-runner/releases).
 
-**macOS:**
+**macOS (Apple Silicon):**
 ```bash
-# For Apple Silicon (M1/M2/M3)
 curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Darwin_arm64.tar.gz | tar xz
 sudo mv alex-runner /usr/local/bin/
-
-# For Intel Macs
-curl -L https://github.com/alexanderchan/alex-runner/releases/latest/download/alex-runner_Darwin_x86_64.tar.gz | tar xz
-sudo mv alex-runner /usr/local/bin/
+# Remove quarantine attribute (required for unsigned binaries)
+xattr -d com.apple.quarantine /usr/local/bin/alex-runner
 ```
 
 **Linux:**
@@ -79,18 +88,6 @@ sudo mv alex-runner /usr/local/bin/
 
 **Windows:**
 Download the `.zip` file from the [Releases page](https://github.com/alexanderchan/alex-runner/releases), extract it, and add the directory to your PATH.
-
-### Via Go Install
-
-```bash
-go install github.com/alexanderchan/alex-runner/cmd/alex-runner@latest
-```
-
-Make sure `$GOPATH/bin` is in your PATH:
-
-```bash
-export PATH="$PATH:$(go env GOPATH)/bin"
-```
 
 ### Manual Build
 
@@ -699,32 +696,26 @@ Last used timestamps are displayed as:
 
 ## Releases
 
-alex-runner uses automated releases via GitHub Actions and GoReleaser. When a new version tag is pushed, pre-built binaries are automatically created for:
+alex-runner uses [Changesets](https://github.com/changesets/changesets) for version management and GitHub Actions + GoReleaser for building releases.
 
+Pre-built binaries are available for:
 - **macOS**: Intel (x86_64) and Apple Silicon (arm64)
 - **Linux**: x86_64 and arm64
 - **Windows**: x86_64
 
 ### Creating a Release
 
-To create a new release:
+```bash
+# 1. Add a changeset (during development)
+pnpm changeset
 
-1. Update the version in `package.json`
-2. Update `CHANGELOG.md` with the new version and changes
-3. Commit the changes
-4. Create and push a new tag:
-   ```bash
-   git tag -a v0.3.0 -m "Release v0.3.0"
-   git push origin v0.3.0
-   ```
-5. GitHub Actions will automatically build and publish the release
+# 2. Release (bumps version, updates changelog, commits, tags, and pushes)
+pnpm release
+```
 
-The release workflow will:
-- Build binaries for all supported platforms
-- Create archives (`.tar.gz` for Unix, `.zip` for Windows)
-- Generate checksums
-- Create a GitHub release with all artifacts
-- Include the changelog in the release notes
+GitHub Actions will automatically build and publish the binaries when the tag is pushed.
+
+See [RELEASE.md](RELEASE.md) for more details.
 
 ## Contributing
 
